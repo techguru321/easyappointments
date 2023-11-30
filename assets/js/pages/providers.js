@@ -26,6 +26,7 @@ App.Pages.Providers = (function () {
     const $city = $('#city');
     const $state = $('#state');
     const $zipCode = $('#zip-code');
+    const $zipCodeSelect = $('#zipCodeSelect');
     const $isPrivate = $('#is-private');
     const $notes = $('#notes');
     const $language = $('#language');
@@ -84,33 +85,7 @@ App.Pages.Providers = (function () {
          * Event: Add New Provider Button "Click"
          */
         $providers.on('click', '#add-provider', () => {
-            $usernameSelect.toggleClass('d-none');
-            $usernameSelect.select2({
-                minimumInputLength: 2,
-                cache: true,
-                ajax: {
-                    url: 'https://md.agenda.sodoc.fr/md/idnat',
-                    dataType: 'json',
-                    type: "GET",
-                    data: function (params) {
-                        return {
-                            value: params.term
-                        };
-                    },
-                    processResults: function (data) {
-                        console.log(data);
-                        return {
-                            results: $.map(data, function (item) {
-                                return {
-                                    id: item.person.family + ' ' + item.person.given,
-                                    text: item.person.family + ' ' + item.person.given
-                                }
-                            })
-                        };
-                    }
-                }
-            });
-            $username.toggleClass('d-none');
+            initSelect2();
             resetForm();
             $filterProviders.find('button').prop('disabled', true);
             $filterProviders.find('.results').css('color', '#AAA');
@@ -136,33 +111,7 @@ App.Pages.Providers = (function () {
          * Event: Edit Provider Button "Click"
          */
         $providers.on('click', '#edit-provider', () => {
-            $usernameSelect.toggleClass('d-none');
-            $usernameSelect.select2({
-                minimumInputLength: 2,
-                cache: true,
-                ajax: {
-                    url: 'https://md.agenda.sodoc.fr/md/idnat',
-                    dataType: 'json',
-                    type: "GET",
-                    data: function (params) {
-                        return {
-                            value: params.term
-                        };
-                    },
-                    processResults: function (data) {
-                        console.log(data);
-                        return {
-                            results: $.map(data, function (item) {
-                                return {
-                                    id: item.person.family + ' ' + item.person.given,
-                                    text: item.person.family + ' ' + item.person.given
-                                }
-                            })
-                        };
-                    }
-                }
-            });
-            $username.toggleClass('d-none');
+            initSelect2();
             $providers.find('.add-edit-delete-group').hide();
             $providers.find('.save-cancel-group').show();
             $filterProviders.find('button').prop('disabled', true);
@@ -218,7 +167,7 @@ App.Pages.Providers = (function () {
                 address: $address.val(),
                 city: $city.val(),
                 state: $state.val(),
-                zip_code: $zipCode.val(),
+                zip_code: $zipCodeSelect.val(),
                 is_private: Number($isPrivate.prop('checked')),
                 notes: $notes.val(),
                 language: $language.val(),
@@ -254,9 +203,7 @@ App.Pages.Providers = (function () {
                 return;
             }
 
-            $('#usernameSelect').select2('destroy');
-            $('#usernameSelect').toggleClass('d-none');
-            $('#username').toggleClass('d-none');
+            destroySelect2();
 
             save(provider);
         });
@@ -273,9 +220,7 @@ App.Pages.Providers = (function () {
                 select(id, true);
             }
 
-            $('#usernameSelect').select2('destroy');
-            $('#usernameSelect').toggleClass('d-none');
-            $('#username').toggleClass('d-none');
+            destroySelect2();
         });
 
         /**
@@ -294,10 +239,10 @@ App.Pages.Providers = (function () {
          * Event: Change User Name.
          */
         $providers.on('change', '#usernameSelect', () => {
-            var userName = $('#usernameSelect').val();
+            var userName = $('#usernameSelect > option:selected').text();
             if (userName != null && userName != undefined) {
                 $firstName.val(userName.split(" ", 1)[0]);
-                $lastName.val(userName.split(" ", 2)[1]);
+                $lastName.val(userName.split(" ", 2)[1].split("(", 1)[0]);
             }
         })
     }
@@ -621,6 +566,84 @@ App.Pages.Providers = (function () {
         }
     }
 
+    function initSelect2() {
+        $usernameSelect.toggleClass('d-none');
+        $usernameSelect.html("<option value='0' selected>" + $firstName.val() + " " + $lastName.val() + "</option>");
+
+        let lastUserNameTerm = localStorage.getItem('lastUserNameTerm') || '';
+
+        $usernameSelect.select2({
+            minimumInputLength: 2,
+            ajax: {
+                url: 'https://md.agenda.sodoc.fr/md/idnat',
+                dataType: 'json',
+                type: "GET",
+                cache: true,
+                data: function (params) {
+                    let query = {
+                        value: params.term || lastUserNameTerm
+                    };
+
+                    localStorage.setItem('lastUserNameTerm', params.term)
+                    return query;
+                },
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item) {
+                            return {
+                                id: item._id,
+                                text: item.person.family + ' ' + item.person.given + '(' + item._id + ')'
+                            }
+                        })
+                    };
+                }
+            }
+        });
+        $username.toggleClass('d-none');
+
+        $zipCodeSelect.toggleClass('d-none');
+        $zipCodeSelect.html("<option value='0' selected>" + $zipCode.val() + "</option>");
+
+        let lastZipCodeTerm = localStorage.getItem('lastZipCodeTerm') || '';
+        $zipCodeSelect.select2({
+            minimumInputLength: 2,
+            ajax: {
+                url: 'https://md.agenda.sodoc.fr/md/codepostal',
+                dataType: 'json',
+                type: "GET",
+                cache: true,
+                data: function (params) {
+                    let query = {
+                        value: params.term || lastZipCodeTerm
+                    };
+
+                    localStorage.setItem('lastZipCodeTerm', params.term)
+                    return query;
+                },
+                processResults: function (data) {
+                    return {
+                        results: $.map(data, function (item) {
+                            return {
+                                id: item.codepostal,
+                                text: item.name + '(' + item.codepostal + ')'
+                            }
+                        })
+                    };
+                }
+            }
+        });
+        $zipCode.toggleClass('d-none');
+    }
+
+    function destroySelect2() {
+        $usernameSelect.select2('destroy');
+        $usernameSelect.toggleClass('d-none');
+        $username.toggleClass('d-none');
+
+        $zipCodeSelect.select2('destroy');
+        $zipCodeSelect.toggleClass('d-none');
+        $zipCode.toggleClass('d-none');
+    }
     /**
      * Initialize the module.
      */

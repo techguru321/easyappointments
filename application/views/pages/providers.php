@@ -151,6 +151,9 @@
 
                                 </label>
                                 <input id="zip-code" class="form-control" maxlength="64" disabled>
+                                <select id="zipCodeSelect" class="form-control required d-none">
+                                    <option value="" selected></option>
+                                </select>
                             </div>
 
                             <div class="mb-3">
